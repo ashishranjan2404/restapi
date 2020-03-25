@@ -1,0 +1,55 @@
+---
+version: '3.6'
+networks:
+  webapi-net:
+services:
+  webapi:
+    image: tiangolo/uvicorn-gunicorn-fastapi:python3.7
+    restart: always
+    environment:
+      - PYTHONPATH=/src
+      - LOG_LEVEL=info  # 0 == False/1 == True
+    networks:
+      - webapi-net
+    volumes:
+      - "../../app:/app"
+    ports:
+      - "80:80"
+    entrypoint: /start-reload.sh
+  redis:
+    restart: always
+    image: redis:latest
+    networks:
+      - webapi-net
+    ports:
+      - "6379:6379"
+  awesomedb:
+    image: aashreys/mongo-auth:latest
+    environment:
+      - AUTH=no
+    container_name: mongodb
+#    volumes:
+      #- "../../devops/docker/mongodb/data/db:/data/db"
+#      - "../../devops/docker/mongodb/mongod.conf:/etc/mongod.conf.orig"
+    networks:
+      - webapi-net
+    ports:
+        - "27017:27017"
+    command: mongod
+#  zookeeper:
+#    image: confluent/zookeeper:latest
+#    ports:
+#      - "2181:2181"
+#    networks:
+#      - webapi-net
+#  kafka:
+#    image: confluent/kafka:latest
+#    ports:
+#      - "9092:1231"
+#    environment:
+#      KAFKA_ADVERTISED_HOST_NAME: 0.0.0.0
+#      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+#    networks:
+#      - webapi-net
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
