@@ -1,55 +1,32 @@
+# from api.kafka_consumers import tasks_consumer_callback
+# from connectionhandlers import kafka_handler
+import os
+
 from fastapi import FastAPI
-from pydantic import BaseModel
-import asyncio
 
-app = FastAPI()
+from api import router as api_router
+from connectionhandlers import async_queue
+from connectionhandlers import mongo
+from connectionhandlers import redis
 
+app = FastAPI(
+    title=os.getenv("SERVICE_NAME", "webapi"),
+    description="tasks",
+    debug=os.getenv("DEBUG", False),
+    version=os.getenv("VERSION", "1.0.0")
+)
 
-class (BaseModel):
-    name: str
-    description: str = None
-    price: float
-    tax: float = None
-
-
-command = []
-
-
-@app.get("/")
-async def root():
-    return "Hello World"
+app.include_router(api_router)
 
 
-async def return_command():
-    while not command:
-        asyncio.sleep(.3)
-    return command.pop(0)
+@app.on_event("startup")
+def startup_event():
+    mongo.connect()
+    redis.connect()
+    async_queue.create()
 
 
-@app.get("/get_command/")
-async def get_command():
-    res = asyncio.wait([return_command()])
-    return {"command": res}
-
-
-@app.get("/send_command/")
-async def send_command_item():
-    command.append("reboot")
-    return {"command": ""}
-
-
-@app.post("/items/")
-async def create_item(item: Item):
-    item_dict = item.dict()
-    if item.tax:
-        price_with_tax = item.price + item.tax
-        item_dict.update({"price_with_tax": price_with_tax})
-    return item_dict
-
-
-@app.put("/items/{item_id}")
-async def create_item(item_id: int, item: Item, q: str = None):
-    result = {"item_id": item_id, **item.dict()}
-    if q:
-        result.update({"q": q})
-    return result
+@app.on_event("shutdown")
+def shutdown_event():
+    mongo.disconnect()
+    redis.disconnect()
